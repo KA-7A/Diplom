@@ -1,52 +1,66 @@
 import socket
-import rsa
 import random
+import json
 
 HOST = '127.0.0.1'
 PORT = 7805
 
-SIZE = 1024
-PUBLIC_KEY = "77"
-PRIVATE_KEY = "11"
+SIZE = 2048
 
-ANSWER_OK = '{"code" : "100", "certificate" : "12345"}'
-ANSWER_FAIL = '{"code" : "400", "certificate" : ""}'
+class Server(object):
+    def __init__(self):
 
-def check(text):
-    return random.randint(0, 1)
+        self.host = HOST
+        self.port = PORT
 
+        self.server_socket = socket.socket()
+        self.server_socket.bind((self.host, self.port))
 
+        while True:
+            self.server_socket.listen(2)
+            self.connection, self.address = self.server_socket.accept()
+            print("Connection from: " + str(self.address))
 
-def server():
-    host = HOST
-    port = PORT
+            code = 0
+            while not code:
+                code = self.DataAnalyse(self.GetMessage())
+            if code == -99:     # Сбрасываем соединение (вдруг пригодится)
+                self.connection.close()
+            elif code == -100:  # Завершаем работу сервера
+                self.connection.close()
+                self.server_socket.close()
+                break
 
-    server_socket = socket.socket()
-    server_socket.bind((host, port))
+    def SendMessage(self, message):
+        # TODO: Не забыть, что отправка может пройти не за раз, и в таком случае нужно повторить ещё раз
+        # print("Отправляем:" + message)
+        self.connection.send(message.encode('utf-8'))
 
-    while True:
-        server_socket.listen(2)
-        connection, address = server_socket.accept()
-        print("Connection from: " + str(address))
+    def GetMessage(self):
+        return json.loads(self.connection.recv(SIZE).decode('utf-8'))
 
-    # Часть 1
-        data = connection.recv(SIZE).decode('utf-8')
+    def DataAnalyse(self, message):
+        print("\n ### Получен код " + str(message["type"]) + "\n")
+        if int(message["type"]) == -100:
+            return -100
 
-        print("from connected user: " + str(data))
-        data = PUBLIC_KEY
+        elif int(message["type"]) == -99:
+            return -99
 
-        connection.send(data.encode('utf-8'))
-    # Часть 2
-        data = connection.recv(SIZE).decode('utf-8')
-        print("from connected user: " + str(data))
-        if check(data):
-            data = ANSWER_OK
-        else:
-            data = ANSWER_FAIL
-        connection.send(data.encode('utf-8'))
+        elif int(message["type"]) == -1:
+            message = json.dumps({
+                "type": 1,
+                "details": {
+                    "server_public_key": "the server's public key", # Создадим в режиме онлайн или подрузим из БД
+                    "operation_number": "some number, which can identify the operation on server side" # Достанем из учетной таблицы
+                }}, indent=3)
+            self.SendMessage(message)
+            # print("Ok!")
+            return 0
 
-        connection.close()
-
+    def __del__(self):
+        print("Server: ended")
+        self.server_socket.close()
 
 if __name__ == '__main__':
-    server()
+    S = Server()

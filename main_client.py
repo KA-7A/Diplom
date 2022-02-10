@@ -1,39 +1,53 @@
 import socket
+import json
 
 HOST = '127.0.0.1'
 PORT = 7805
 
-SIZE = 1024
+SIZE = 2048
 
-MSG_1 = "KEY_REQUEST"
-MSG_2 = "LOGIN DATA"
+class Client(object):
+    def __init__(self):
 
-def decipher(text):
+        self.host = HOST # Хост можно получить и из имени, используя gethostbyname,
+                    # но в первой итерации будем считать, что айпишник и порт
+                    # нам заранее известны
+        self.port = PORT
 
-    return text
+        self.client_socket = socket.socket()  # instantiate
+        self.client_socket.connect((self.host, self.port))  # connect to the server
 
-def client():
-    host = HOST  # as both code is running on same pc
-    port = PORT  # socket server port number
+    def SendMessage(self, message):
+        #TODO: Не забыть, что отправка может пройти не за раз, и в таком случае нужно повторить ещё раз
+        print("Отправляем:" + message)
+        self.client_socket.send(message.encode('utf-8'))
 
-    client_socket = socket.socket()  # instantiate
-    client_socket.connect((host, port))  # connect to the server
+    def SendKeyRequest(self):   # Отправляем специальный запрос, в котором просим открытый ключ
+        message = json.dumps({"type": -1, "details": {}})
+        self.SendMessage(message)
 
-    cls = client_socket
-    # Часть 1: Отправка первичного запроса ключа и получение ответа
 
-    cls.send(MSG_1.encode('utf-8'))
-    data = cls.recv(SIZE).decode('utf-8')
-    print(data)
+    def GetKeyResponce(self):   # Получаем информацию об открытом ключе и номере итерации
+        return self.client_socket.recv(SIZE).decode('utf-8')
 
-    # Часть 2: Отправка запроса и получение ответа
 
-    cls.send(MSG_2.encode('utf-8'))
-    data = decipher(cls.recv(SIZE).decode('utf-8'))
-    print(data)
+    def SendEndRequest(self):   # Отправляем запрос на остановку сервера, чтобы освободить порт
+        message = json.dumps({"type": -100, "details": {}})
+        self.SendMessage(message)
 
-    client_socket.close()
+    def __del__(self):
+        self.client_socket.close()
 
+
+def main():
+    Client_1 = Client()
+    for _ in range(5): # Просто повторим, чтобы убедиться, что всё работает
+        Client_1.SendKeyRequest()
+        msg = Client_1.GetKeyResponce()
+        print(msg)
+    Client_1.SendEndRequest()
+    pass
 
 if __name__ == '__main__':
-    client()
+    main()
+
