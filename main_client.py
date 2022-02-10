@@ -31,8 +31,12 @@ class Client(object):
         return self.client_socket.recv(SIZE).decode('utf-8')
 
 
-    def SendEndRequest(self):   # Отправляем запрос на остановку сервера, чтобы освободить порт
+    def SendStopRequest(self):   # Отправляем запрос на остановку сервера, чтобы освободить порт
         message = json.dumps({"type": -100, "details": {}})
+        self.SendMessage(message)
+
+    def SendEndRequest(self):   # Отправляем запрос на остановку сервера, чтобы освободить порт
+        message = json.dumps({"type": -99, "details": {}})
         self.SendMessage(message)
 
     def __del__(self):
@@ -45,7 +49,8 @@ def main():
         Client_1.SendKeyRequest()
         msg = Client_1.GetKeyResponce()
         print(msg)
-    Client_1.SendEndRequest()
+    # Client_1.SendEndRequest()
+    Client_1.SendStopRequest()
     pass
 
 if __name__ == '__main__':
