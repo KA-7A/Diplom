@@ -7,12 +7,12 @@ PORT = 7805
 SIZE = 2048
 
 class Client(object):
-    def __init__(self):
+    def __init__(self, port=PORT):
 
         self.host = HOST # Хост можно получить и из имени, используя gethostbyname,
                     # но в первой итерации будем считать, что айпишник и порт
                     # нам заранее известны
-        self.port = PORT
+        self.port = port
 
         self.client_socket = socket.socket()  # instantiate
         self.client_socket.connect((self.host, self.port))  # connect to the server

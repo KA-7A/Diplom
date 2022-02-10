@@ -8,7 +8,7 @@
             "comment_2": " Пример запроса от клиента для получения ключа"
         },
         {
-            "type": -3,
+            "type": -2,
             "details": {
                 "name": "user/service name",
                 "pass": "hash(password)",
@@ -75,13 +75,22 @@
             "type": 2,
             "details": {
                 "code": "code",
+                "message": "certificates information",
+                "operation_number": "some number, which can identify the operation on server side"
+            },
+            "comment_1": "Сервер: Получайте инфу о сертификатах"
+        },
+        {
+            "type": 3,
+            "details": {
+                "code": "code",
                 "message": "encrypted_certificate",
                 "operation_number": "some number, which can identify the operation on server side"
             },
             "comment_1": "Сервер: Получайте свой сертификат"
         },
         {
-            "type": 3,
+            "type": 4,
             "details":
             {
                 "code": "code",
