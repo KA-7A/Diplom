@@ -1,5 +1,4 @@
 import socket
-import random
 import json
 
 HOST = '127.0.0.1'
