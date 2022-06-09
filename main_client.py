@@ -1,10 +1,17 @@
 import socket
 import json
+import os
 
 HOST = '127.0.0.1'
 PORT = 7805
 
 SIZE = 2048
+
+class UserData(object):
+    def __init__(self, name, password):
+        self.name = name
+        self.hash = hash(password)
+        print(self.name, self.hash)
 
 class Client(object):
     def __init__(self, port=PORT):
@@ -44,13 +51,22 @@ class Client(object):
 
 
 def main():
-    Client_1 = Client()
-    for _ in range(5): # Просто повторим, чтобы убедиться, что всё работает
-        Client_1.SendKeyRequest()
-        msg = Client_1.GetKeyResponce()
-        print(msg)
-    # Client_1.SendEndRequest()
-    Client_1.SendStopRequest()
+    user = UserData('asdf', 'bcxv')
+    return 
+    try:
+        Client_1 = Client()
+        for _ in range(10): # Просто повторим, чтобы убедиться, что всё работает
+            Client_1.SendKeyRequest()
+            msg = Client_1.GetKeyResponce()
+            print(msg)
+        # Client_1.SendEndRequest()
+        Client_1.SendStopRequest()
+    except Exception as err:
+        if err.args[0] == 111:
+            print(err.args[1])
+        else:
+            print(err)
+
     pass
 
 if __name__ == '__main__':

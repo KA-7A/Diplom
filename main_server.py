@@ -58,13 +58,13 @@ class Server(object):
         self.server_socket.bind((self.host, self.port))
 
         while True:
-            self.server_socket.listen(2)
+            self.server_socket.listen(5)
             self.connection, self.address = self.server_socket.accept()
             print("Connection from: " + str(self.address))
 
             code = 0
             while not code:
-                code = self.DataAnalyse(self.GetMessage())
+                code = self.DataAnalyse(self.GetMessage(), 10)
             if code == -99:     # Сбрасываем соединение (вдруг пригодится)
                 self.connection.close()
             elif code == -100:  # Завершаем работу сервера
