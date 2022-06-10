@@ -13,6 +13,20 @@ delimiter ;
 -- Функции
 -- -- Служебные
 -- -- -- get_user_id (user_name)
+drop function if exists get_error_description;
+DELIMITER &&
+create function get_error_description(i_error_id int)
+returns varchar(50)
+deterministic
+begin
+    declare resp varchar(50);
+    select TYPE into resp from RETURN_CODES where ID = i_error_id;
+    return resp;
+end&&
+delimiter ;
+select get_error_description(10);
+
+
 drop function if exists get_user_id;
 DELIMITER &&
 create function get_user_id(i_user_name varchar(100))
@@ -41,20 +55,17 @@ select get_user_id('123');
 drop function if exists get_salt;
 DELIMITER &&
 create function get_salt(i_user_name varchar(100))
-returns MEDIUMINT
+returns varchar(10)
 deterministic
 begin
-    declare tmp_num int;
-    set tmp_num = -1;
-    select ID into @tmp_num from USERS
-        where NAME = i_user_name;
-    if tmp_num < 0 then
-        set tmp_num = 2;
-    end if;
-    return @tmp_num;
-
+    declare tmp_salt varchar(10);
+    set tmp_salt = "";
+    select SALT into tmp_salt from USERS
+        where ID = get_user_id(i_user_name);
+    return tmp_salt;
 end&&
 delimiter ;
+select get_salt('root');
 
 -- -- -- check_access (user_name, user_hash)
 drop function if exists check_access;
@@ -110,7 +121,7 @@ begin
     declare tmp_count int;
     declare responce text;
     if (check_access(i_user_name, i_user_hash) = 0) then
-        return 'Access denied!';
+        return 'Error[-1]: Access denied!';
     end if;
     if (check_privileges(i_user_name) = 1) then
         select count(*) into @tmp_count from READABLE
@@ -122,7 +133,7 @@ begin
     end if;
     if (@tmp_count = 0) then
         call m_log(get_user_id(i_user_name), 1, -3);
-        return 'You do not has permissions to this secret or secret was now found';
+        return 'Error[-3]: You do not has permissions to this secret or secret was now found';
     else
         call m_log(get_user_id(i_user_name), 1, 3);
         select secret into @responce from SECRETS where ID = i_secret_num;
@@ -152,7 +163,7 @@ begin
     declare continue handler for sqlstate '02000' set done=1;
 
     if (check_access(i_user_name, i_user_hash) = 0) then
-        return "Access denied";
+        return "Error[-1]: Access denied";
     end if;
     open cur;
     m_loop: while (done = 0) do
@@ -197,7 +208,7 @@ begin
     declare continue handler for sqlstate '02000' set done=1;
 
     if (check_access(i_user_name, i_user_hash) = 0) then
-        return "Access denied";
+        return "Error[-1]: Access denied";
     end if;
     set tmp_user_prv    = check_privileges(i_user_name);
     set tmp_user_id     = get_user_id(i_user_name);
@@ -248,7 +259,7 @@ begin
     declare continue handler for sqlstate '02000' set done=1;
 
     if (check_access(i_user_1_name, i_user_1_hash) = 0) then
-        return "Access denied";
+        return "Error[-1]: Access denied";
     end if;
     set tmp_user_1_id     = get_user_id(i_user_1_name);
     set tmp_user_2_id     = get_user_id(i_user_2_name);
@@ -306,11 +317,11 @@ begin
     declare continue handler for sqlstate '02000' set done=1;
 
     if (check_access(i_user_name, i_user_hash) = 0) then
-        return "Access denied";
+        return "Error[-1]: Access denied";
     end if;
     if (check_privileges(i_user_name) = 0) then
         call m_log(get_user_id(i_user_name), 1, -7);
-        return "Access denied";
+        return "Error[-7]: Access denied";
     end if;
 
     open cur;
@@ -344,20 +355,20 @@ delimiter ;
 select get_logs('root', '_');
 select get_logs('unknown', '_');
 -- -- -- -- -- -- -- -- -- -- -- -- --
--- -- -- insert_secret (user_name, user_hash, secret_type, secret_secret, secret_valid_to, secret_description, return_code)
+-- -- -- insert_secret (user_name, user_hash, id,  secret_type, secret_secret, secret_valid_to, secret_description, return_code)
 drop procedure if exists insert_secret;
 delimiter |
 create procedure insert_secret( in i_user_name          varchar(100),
                                 in i_user_hash          varchar(100),
-                                in i_id                 int,
                                 in i_secret_type        int,
                                 in i_secret_secret      text,
-                                in i_secret_valid_to    date,
+                                in i_secret_valid_to    text,
                                 in i_secret_description text,
                                 out return_code         int)
 l:begin
     declare tmp_id  int;
     declare tmp     int default 0;
+    declare date_to date;
     if (check_access(i_user_name, i_user_hash) = 0) then
         set return_code = -1;
         leave l;
@@ -368,29 +379,28 @@ l:begin
         call m_log(get_user_id(i_user_name), 3, -9);
         leave l;
     end if;
-
-    if (i_secret_valid_to <= SYSDATE() and i_secret_valid_to is not null) then
+    if (LENGTH(i_secret_valid_to) = 0) then
+        set i_secret_valid_to = null;
+    else
+        set date_to = STR_TO_DATE(i_secret_valid_to, '%d.%m.%Y');
+    end if;
+    if (date_to <= SYSDATE() and date_to is not null) then
         set return_code = -8;
         call m_log(get_user_id(i_user_name), 3, -8);
         leave l;
     end if;
-    select count(*) into @tmp from SECRETS where ID = i_id;
-    if (@tmp = 0) then
-        set @tmp_id = i_id;
-    else
-        select max(ID) into @tmp_id from SECRETS;
-        set @tmp_id = (@tmp_id+1);
-    end if;
-    insert into SECRETS (ID,      TYPE,            VALID_TO,          SECRET,          DESCRIPTION) values
-                        (@tmp_id, i_secret_type,   i_secret_valid_to, i_secret_secret, i_secret_description);
+    select max(ID)+1 into return_code from SECRETS;
+
+    insert into SECRETS (ID,      TYPE,            VALID_TO, SECRET,          DESCRIPTION) values
+                        (return_code, i_secret_type,   date_to , i_secret_secret, i_secret_description);
     commit;
     insert into OWNERSHIP   (SECRET_ID, USER_ID) values
-                            (@tmp_id,   get_user_id(i_user_name));
+                            (return_code,   get_user_id(i_user_name));
+
     call m_log(get_user_id(i_user_name), 3, 8);
     call m_log(get_user_id(i_user_name), 3, 9);
-    set return_code = 0;
 
-end |
+end|
 delimiter ;
 call insert_secret('root', '_', 1, 0, 'Some text', null, '', @o_return_code);
 select @o_return_code;
@@ -464,6 +474,11 @@ l:begin
         where   USER_ID = get_user_id(i_user_1_name) and
                 SECRET_ID = i_secret_num;
     if (@tmp = 1 or check_privileges(i_user_1_name) = 1) then
+        if (get_user_id(i_user_2_name) = 2) then
+            set o_return_code = -16;
+            call m_log(get_user_id(i_user_1_name), 2, -16);
+            leave l;
+        end if;
         update OWNERSHIP set USER_ID = get_user_id(i_user_2_name) where SECRET_ID = i_secret_num;
         insert into READABLE (USER_ID, SECRET_ID) values (get_user_id(i_user_2_name), i_secret_num);
         set o_return_code = 11;

@@ -12,8 +12,7 @@
             "details": {
                 "name": "user/service name",
                 "pass": "hash(password)",
-                "client_public_key": "the client's public key",
-                "operation_number": "some number, which can identify the operation on server side"
+                "client_public_key": "the client's public key"
             },
             "comment_1": " Пользователь просит получить информацию о доступных ему ключах/сертификатах"
         },
@@ -23,8 +22,7 @@
                 "name": "user/service name",
                 "pass": "hash(password)",
                 "certificate_number": "number",
-                "client_public_key": "the client's public key",
-                "operation_number": "some number, which can identify the operation on server side"
+                "client_public_key": "the client's public key"
             },
             "comment_1": " Пользователь просит получить определенный сертификат из БД",
             "comment_2": " Номер операции ещё больше усложнит взлом перехваченных пакетов"
@@ -35,8 +33,7 @@
                 "name": "user/service name",
                 "pass": "hash(password)",
                 "certificate": "certificate",
-                "client_public_key": "the client's public key",
-                "operation_number": "some number, which can identify the operation on server side"
+                "client_public_key": "the client's public key"
             },
             "comment_1": " Пользователь хочет добавить новый ключ/сертификат в базу данных",
             "comment_2": " Хорошо бы сделать систему, в которой пользователь может расшарить права на свои сертификаты"
@@ -47,8 +44,7 @@
                 "name": "user/service name",
                 "pass": "hash(password)",
                 "certificate_number": "number",
-                "client_public_key": "the client's public key",
-                "operation_number": "some number, which can identify the operation on server side"
+                "client_public_key": "the client's public key"
             },
             "comment_1": " Пользователь хочет удаоить один из своих сертификатов / ключей",
             "comment_2": " Вообще, хорошо бы организовать систему прав доступа на удаление ключей, потому что мало ли что"
@@ -57,8 +53,7 @@
         {
             "type": 1,
             "details" : {
-                "server_public_key": "the server's public key",
-                "operation_number": "some number, which can identify the operation on server side"
+                "server_public_key": "the server's public key"
             },
             "comment_1": "Это будет первый ответ сервера клиенту. В нём содержится его публичный ключ и порядковый номер операции,которую сервер будет обрабатывать"
         },
@@ -66,8 +61,7 @@
             "type": 0,
             "details": {
                 "code": "error_code",
-                "message": "error_message",
-                "operation_number": "some number, which can identify the operation on server side"
+                "message": "error_message"
             },
             "comment_1": " Тут что-то пошло не так. Сервер укажет код ошибки и напишет какое-то сообщение"
         },
@@ -75,8 +69,7 @@
             "type": 2,
             "details": {
                 "code": "code",
-                "message": "certificates information",
-                "operation_number": "some number, which can identify the operation on server side"
+                "message": "certificates information"
             },
             "comment_1": "Сервер: Получайте инфу о сертификатах"
         },
@@ -84,8 +77,7 @@
             "type": 3,
             "details": {
                 "code": "code",
-                "message": "encrypted_certificate",
-                "operation_number": "some number, which can identify the operation on server side"
+                "message": "encrypted_certificate"
             },
             "comment_1": "Сервер: Получайте свой сертификат"
         },
@@ -94,8 +86,7 @@
             "details":
             {
                 "code": "code",
-                "message": "комментарий к выполнению операции",
-                "operation_number": "some number, which can identify the operation on server side"
+                "message": "комментарий к выполнению операции"
             },
             "comment_1": "Сервер: я сделал, что ты просил (удалил/добавил)"
         }

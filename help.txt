@@ -1,0 +1,17 @@
+SERVER types:
+    1 - Errors  (в деталях код и описание ошибки)
+    0 - Ok      (в деталях код и описание успешного действия)
+
+CLIENT types:
+    1 - insert_secret
+    2 - drop_secret
+    3 - update_secret
+    4 - grant_all
+    5 - grant_read
+    6 - revoke_read
+    7 - add_user
+    8 - get_secret
+    9 - get_my_secrets
+    10 - get_my_readable_secrets
+    11 - get_contacts
+    12 - get_logs
