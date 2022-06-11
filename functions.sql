@@ -389,7 +389,12 @@ l:begin
         call m_log(get_user_id(i_user_name), 3, -8);
         leave l;
     end if;
-    select max(ID)+1 into return_code from SECRETS;
+    select count(*) into return_code from SECRETS;
+    if (return_code = 0) then
+        set return_code = 1;
+    else
+        select max(ID)+1 into return_code from SECRETS;
+    end if;
 
     insert into SECRETS (ID,      TYPE,            VALID_TO, SECRET,          DESCRIPTION) values
                         (return_code, i_secret_type,   date_to , i_secret_secret, i_secret_description);
@@ -412,7 +417,7 @@ call insert_secret('root', '_', 1, 0, 'Some text_4', null, '', @o_return_code);
 select @o_return_code;
 
 -- -- -- drop_secret( user_name, user_hash, secret_num, return_code)
-delete procedure if exists drop_secret;
+drop procedure if exists drop_secret;
 delimiter |
 create procedure drop_secret(in i_user_name varchar(100), in i_user_hash varchar(100), in i_secret_num int, out o_return_code int)
 l:begin
@@ -428,7 +433,7 @@ l:begin
             delete from OWNERSHIP where SECRET_ID   = i_secret_num;
             delete from READABLE  where SECRET_ID   = i_secret_num;
             delete from SECRETS   where ID          = i_secret_num;
-            set o_return_code = 0;
+            set o_return_code = 10;
             call m_log(get_user_id(i_user_name), 4, 10);
             leave l;
         else
@@ -437,11 +442,17 @@ l:begin
             leave l;
         end if;
     else
-        delete from OWNERSHIP where SECRET_ID   = i_secret_num;
-        delete from READABLE  where SECRET_ID   = i_secret_num;
-        delete from SECRETS   where ID          = i_secret_num;
-        set o_return_code = 0;
-        call m_log(get_user_id(i_user_name), 4, 10);
+        select count(*) into @tmp from OWNERSHIP where SECRET_ID = i_secret_num;
+        if (@tmp = 1) then
+            delete from OWNERSHIP where SECRET_ID   = i_secret_num;
+            delete from READABLE  where SECRET_ID   = i_secret_num;
+            delete from SECRETS   where ID          = i_secret_num;
+            set o_return_code = 10;
+            call m_log(get_user_id(i_user_name), 4, 10);
+        else
+            set o_return_code = -17;
+            call m_log(get_user_id(i_user_name), 4, -17);
+        end if;
         leave l;
     end if;
 end|
