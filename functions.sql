@@ -24,7 +24,6 @@ begin
     return resp;
 end&&
 delimiter ;
-select get_error_description(10);
 
 
 drop function if exists get_user_id;
@@ -47,9 +46,6 @@ begin
 
 end&&
 delimiter ;
-select get_user_id('root');
-select get_user_id('unknown');
-select get_user_id('123');
 
 -- -- -- get_salt (user_name)
 drop function if exists get_salt;
@@ -65,7 +61,6 @@ begin
     return tmp_salt;
 end&&
 delimiter ;
-select get_salt('root');
 
 -- -- -- check_access (user_name, user_hash)
 drop function if exists check_access;
@@ -87,9 +82,6 @@ begin
     end if;
 end&&&
 delimiter ;
-select check_access('root', '_');
-select check_access('root', '__');
-select check_access('root', '_');
 
 -- -- -- check_privileges (user_name)
 -- -- -- Используется только после check_access!
@@ -106,8 +98,6 @@ begin
     return @res;
 end&&&
 delimiter ;
-select check_privileges('root');
-select check_privileges('unknown');
 
 
 -- -- Пользовательские
@@ -142,11 +132,6 @@ begin
 
 end &&&
 delimiter ;
-select get_secret('root', '_', 1);
-select get_secret('root', '__', 1);
-select get_secret('unknown', '_', 2);
-select get_secret('root', '_', 3);
-select get_secret('unknown', '_', 3);
 
 -- -- -- get_my_secrets (user_name, user_hash)
 drop function if exists get_my_secrets;
@@ -187,7 +172,7 @@ begin
     return response;
 end&&&
 delimiter ;
-select get_my_secrets('root', '_');
+
 -- -- -- get_my_readable_secrets (user_name, user_hash)
 drop function if exists get_my_readable_secrets;
 delimiter &&&
@@ -238,9 +223,48 @@ begin
     return response;
 end&&&
 delimiter ;
-select get_my_readable_secrets('root', '_');
-select get_my_readable_secrets('unknown', '_');
-select get_my_readable_secrets('unknown', '__');
+
+-- -- -- get_users(user_name, user_hash)
+drop function if exists get_users;
+delimiter &&&
+create function get_users(i_user_name varchar(100), i_user_hash varchar(100))
+returns text
+deterministic
+begin
+    declare response text default "(";
+
+    declare tmp_string      varchar(50);
+
+    declare done integer default 0;
+    declare cur cursor for select NAME from USERS where NAME!='unknown';
+    declare continue handler for sqlstate '02000' set done=1;
+
+    if (check_access(i_user_name, i_user_hash) = 0) then
+        return "Error[-1]: Access denied";
+    end if;
+
+
+    open cur;
+    m_loop: while (done = 0) do
+        set tmp_string = "";
+        FETCH cur into tmp_string;
+        if (tmp_string = "") then
+            leave m_loop;
+        end if;
+        if (LENGTH(response) = 1) then
+            set response = CONCAT(response, "'",tmp_string,"'");
+        else
+            set response = CONCAT(response, ",'",tmp_string,"'");
+        end if;
+    end while;
+    set response = CONCAT(response, ")");
+
+    close cur;
+    call m_log(get_user_id(i_user_name), 1, 17);
+    return response;
+end&&&
+delimiter ;
+
 -- -- -- get_contacts (user_1_name, user_1_hash, user_2_name)
 drop function if exists get_contacts;
 delimiter &&&
@@ -285,9 +309,7 @@ begin
     return response;
 end&&&
 delimiter ;
-select get_contacts('root', '_', 'root');
-select get_contacts('unknown', '_', 'root');
-select get_contacts('unknown', '__', 'root');
+
 -- -- -- get_logs (user_name, user_hash)
 -- select L.ID, L.L_TIME, U.NAME, AT.TYPE, RC.TYPE
 --    from  LOGS as L,  USERS as U, RETURN_CODES as RC, ACTION_TYPE AS AT
@@ -352,10 +374,8 @@ begin
 end&&&
 delimiter ;
 
-select get_logs('root', '_');
-select get_logs('unknown', '_');
 -- -- -- -- -- -- -- -- -- -- -- -- --
--- -- -- insert_secret (user_name, user_hash, id,  secret_type, secret_secret, secret_valid_to, secret_description, return_code)
+-- -- -- insert_secret (user_name, user_hash,  secret_type, secret_secret, secret_valid_to, secret_description, return_code)
 drop procedure if exists insert_secret;
 delimiter |
 create procedure insert_secret( in i_user_name          varchar(100),
@@ -407,14 +427,59 @@ l:begin
 
 end|
 delimiter ;
-call insert_secret('root', '_', 1, 0, 'Some text', null, '', @o_return_code);
-select @o_return_code;
-call insert_secret('root', '__', 2, 0, 'Some text', null, '', @o_return_code);
-select @o_return_code;
-call insert_secret('root', '_', 3, -1, 'Some text_2', null, '', @o_return_code);
-select @o_return_code;
-call insert_secret('root', '_', 1, 0, 'Some text_4', null, '', @o_return_code);
-select @o_return_code;
+-- -- -- update_secret(user_name, user_hash, secret_id,  secret_type, secret_secret, secret_valid_to, secret_description, return_code)
+drop procedure if exists update_secret;
+delimiter |
+create procedure update_secret( in i_user_name          varchar(100),
+                                in i_user_hash          varchar(100),
+                                in i_secret_id          int,
+                                in i_secret_type        int,
+                                in i_secret_secret      text,
+                                in i_secret_valid_to    text,
+                                in i_secret_description text,
+                                out return_code         int)
+l:begin
+    declare tmp_id  int;
+    declare tmp     int default 0;
+    declare date_to date;
+    if (check_access(i_user_name, i_user_hash) = 0) then
+        set return_code = -1;
+        leave l;
+    end if;
+    select count(*) into @tmp from OWNERSHIP where USER_ID = get_user_id(i_user_name) and SECRET_ID = i_secret_id;
+    if (check_privileges(i_user_name) = 0 and  @tmp = 0) then
+        set return_code = -11;
+        call m_log(get_user_id(i_user_name), 2, -11 );
+        leave l;
+    end if;
+    select count(*) into @tmp from SECRET_TYPE where ID = i_secret_type;
+    if (@tmp != 1) then
+        set return_code = -9;
+        call m_log(get_user_id(i_user_name), 2, -9);
+        leave l;
+    end if;
+    if (LENGTH(i_secret_valid_to) = 0) then
+        set i_secret_valid_to = null;
+    else
+        set date_to = STR_TO_DATE(i_secret_valid_to, '%d.%m.%Y');
+    end if;
+    if (date_to <= SYSDATE() and date_to is not null) then
+        set return_code = -8;
+        call m_log(get_user_id(i_user_name), 2, -8);
+        leave l;
+    end if;
+    select count(*) into return_code from SECRETS where ID = i_secret_id;
+    if (return_code = 0) then
+        set return_code = -11;
+        call m_log(get_user_id(i_user_name), 2, -11);
+        leave l;
+    end if;
+    update SECRETS set TYPE=i_secret_type, VALID_TO = date_to, SECRET = i_secret_secret, DESCRIPTION = i_secret_description;
+    commit;
+    set return_code = 18;
+    call m_log(get_user_id(i_user_name), 2, 18);
+end|
+delimiter ;
 
 -- -- -- drop_secret( user_name, user_hash, secret_num, return_code)
 drop procedure if exists drop_secret;
@@ -457,14 +522,8 @@ l:begin
     end if;
 end|
 delimiter ;
-call insert_secret('root', '_', 100, 0, 'Test_text_to_delete', null, '', @o_return_code);
-select * from SECRETS;
-call drop_secret('root', '_', 100, @o_return_code);
-select * from SECRETS;
 
 
--- -- -- update_secret (user_name, user_hash, secret_num, secret_type, secret_secret, secret_valid_to, secret_description)
--- #TODO: Реализовать эту функцию. Сейчас я устал.
 -- -- -- grant_all (user_1_name, user_1_hash, user_2_name, secret_num, return_code)
 drop procedure if exists grant_all;
 delimiter |
@@ -504,8 +563,6 @@ l:begin
 end|
 delimiter ;
 
-call grant_all ('root', '_', 'unknown', 5, @o_return_code);
-call grant_all ('unknown', '_', 'root', 2, @o_return_code);
 -- -- -- grant_read (user_1_name, user_1_hash, user_2_name, secret_num, return_code)
 drop procedure if exists grant_read;
 delimiter |
@@ -539,7 +596,6 @@ l:begin
 end|
 delimiter ;
 
-call grant_read('root', '_', 'unknown', 3, @o_return_code);
 -- -- -- revoke_read (user_1_name, user_1_hash, user_2_name, secret_num, return_code)
 drop procedure if exists revoke_read;
 delimiter |
@@ -583,7 +639,6 @@ l:begin
 end|
 delimiter ;
 
-call revoke_read('root', '_', 'unknown', 3, @o_return_code);
 -- -- -- add_contact (user_name, user_hash, user_contact, return_code)
 drop procedure if exists add_contact;
 delimiter |
@@ -610,7 +665,7 @@ l:begin
     call m_log(get_user_id(i_user_name), 3, 15);
 end|
 delimiter ;
-call add_contact('root', '_', 'galagan.ka@phystech.edu', @o_return_code);
+
 -- -- -- add_user (user_1_name, user_1_hash, user_2_name, user_2_hash, user_2_type, user_2_salt, user_2_privileged, return_code)
 drop procedure if exists add_user;
 delimiter |
@@ -642,6 +697,22 @@ l:begin
 end |
 delimiter ;
 
-call add_user('root', '_', 'ka7a', '-', 1, '_', 1, @o_return_code);
-
+-- -- -- update_password(user_name, user_hash, new_user_hash)
+drop procedure if exists update_password;
+delimiter |
+create procedure update_password( in i_user_name  varchar(100),
+                                  in i_user_hash  varchar(64),
+                                  in i_new_user_hash varchar(64),
+                                  out o_return_code         int)
+l:begin
+    if (check_access(i_user_name, i_user_hash) = 0) then
+        set o_return_code = -1;
+        leave l;
+    end if;
+    update USERS set HASH = i_new_user_hash where NAME = i_user_name;
+    set o_return_code = 19;
+    call m_log(get_user_id(i_user_name), 2, 19);
+    leave l;
+end|
+delimiter ;
 

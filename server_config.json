@@ -1,0 +1,9 @@
+{
+    "database_host" : "localhost",
+    "server_host" : "212.193.59.19",
+    "database_port" : 43433,
+    "database_user_name" : "service",
+    "database_name" : "diplom",
+    "private_key_path": "./server.key",
+    "public_key_path" : "./server.crt"
+}

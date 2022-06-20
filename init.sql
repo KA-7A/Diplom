@@ -136,16 +136,21 @@ insert into RETURN_CODES (ID, TYPE) values  ROW(0, 'Ok'),
                                             ROW(11, 'OK: Grant all to secret'),
                                             ROW(12, 'OK: Grant read to secret'),
                                             ROW(13, 'OK: Revoke read to secret'),
-                                            ROW(15, 'OK: Contact added'),;
-                                            ROW(16, 'OK: User added');
+                                            ROW(15, 'OK: Contact added'),
+                                            ROW(16, 'OK: User added'),
+                                            ROW(17, 'OK: Get users'),
+                                            ROW(18, 'OK: Update secret'),
+                                            ROW(19, 'OK: Update password'),
+                                            ;
 
 insert into USERS (NAME, HASH, SALT, PRIVILEGED, TYPE) values
-              ROW ('root', '_', '_', True, 2),
+              ROW ('root', '2d5e81b6412471a5074fadfe1e0267f2958e01a023fa90f346af7c65cd189270', '_', True, 2),
               ROW ('unknown', '_', '_', False, 3);
+-- Дефолтный пароль для рута
 
-insert into SECRETS (TYPE, SECRET) values   ROW(3, 'Just password'),
-                                            ROW(0, 'Some text'),
-                                            ROW(0, 'Some more text');
+insert into SECRETS (ID, TYPE, SECRET) values   ROW(1, 3, 'Just password'),
+                                            ROW(2, 0, 'Some text'),
+                                            ROW(3, 0, 'Some more text');
 
 insert into OWNERSHIP values ROW (1, 1), ROW (1, 2), ROW(2, 3);
 insert into CONTACTS  values ROW (1, "galagan.ka@phystech.edu"), ROW(1, "+7-977-770-28-08");
